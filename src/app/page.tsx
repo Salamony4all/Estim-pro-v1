@@ -8,13 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { extractData, getImageAsDataUri } from './actions';
+import { extractData } from './actions';
 import type { ExtractedData } from '@/ai/flows/extract-data-flow';
-import { Download, Loader2, FileText, UploadCloud, Image as ImageIcon, X } from 'lucide-react';
+import { Download, Loader2, FileText, UploadCloud, X } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Progress } from '@/components/ui/progress';
-import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter } from '@/components/ui/dialog';
 
 
@@ -44,30 +43,6 @@ export default function Home() {
 
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
-  const [imageUris, setImageUris] = useState<Record<string, string>>({});
-
-
-  useEffect(() => {
-    const fetchImageUris = async () => {
-        if (extractedData?.boqs) {
-            const allItems = extractedData.boqs.flatMap(boq => boq.items);
-            const urlsToFetch = allItems
-                .map(item => item.imageUrl)
-                .filter((url): url is string => !!url && url.startsWith('http') && !imageUris[url]);
-
-            if (urlsToFetch.length > 0) {
-                const newImageUris: Record<string, string> = {};
-                await Promise.all(urlsToFetch.map(async (url) => {
-                    const dataUri = await getImageAsDataUri(url);
-                    newImageUris[url] = dataUri;
-                }));
-                setImageUris(prev => ({...prev, ...newImageUris}));
-            }
-        }
-    };
-    fetchImageUris();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [extractedData]);
 
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,7 +95,6 @@ export default function Home() {
     setError(null);
     setExtractedData(null);
     setShowFinalBoq(false);
-    setImageUris({});
 
     try {
       const reader = new FileReader();
@@ -245,19 +219,11 @@ export default function Home() {
     doc.text(`Contact Number: ${contactNumber}`, 14, 73);
 
     // Add Table
-    const tableColumn = ["Sn", "Image", "Item", "Description", "Quantity", "Unit", "Rate", "Amount"];
+    const tableColumn = ["Sn", "Item", "Description", "Quantity", "Unit", "Rate", "Amount"];
     
     const tableRows = finalBoqItems.map((item, index) => {
-        let imageCell: any = 'No image';
-        if (item.imageUrl) {
-            let imageDataUri = item.imageUrl.startsWith('http') ? imageUris[item.imageUrl] : item.imageUrl;
-            if(imageDataUri) {
-                imageCell = { image: imageDataUri, width: 20 };
-            }
-        }
         return [
             index + 1,
-            imageCell,
             item.itemCode || '-',
             item.description,
             item.quantity,
@@ -276,61 +242,6 @@ export default function Home() {
       styles: { fontSize: 8, valign: 'middle' },
       columnStyles: {
           0: { cellWidth: 8 }, // Sn column
-          1: { cellWidth: 22, minCellHeight: 22 }, // Image column
-      },
-      willDrawCell: (data) => {
-        if (data.column.index === 1 && typeof data.cell.raw === 'object' && data.cell.raw?.image) {
-            const img = new window.Image();
-            img.src = data.cell.raw.image;
-            img.onload = () => {
-              const aspectRatio = img.width / img.height;
-              let imageHeight = (data.cell.width - 4) / aspectRatio;
-              if (data.row.height < imageHeight) {
-                data.row.height = imageHeight + 4;
-              }
-            }
-        }
-      },
-      didDrawCell: (data) => {
-          if (data.column.index === 1 && typeof data.cell.raw === 'object' && data.cell.raw?.image) {
-              const img = new window.Image();
-              img.src = data.cell.raw.image;
-              img.onload = () => {
-                try {
-                    const cellWidth = data.cell.width - 4;
-                    const cellHeight = data.cell.height - 4;
-                    
-                    const aspect = img.width / img.height;
-                    let imgWidth = cellWidth;
-                    let imgHeight = imgWidth / aspect;
-
-                    if (imgHeight > cellHeight) {
-                        imgHeight = cellHeight;
-                        imgWidth = imgHeight * aspect;
-                    }
-
-                    const x = data.cell.x + (data.cell.width - imgWidth) / 2;
-                    const y = data.cell.y + (data.cell.height - imgHeight) / 2;
-                    
-                    const imgFormat = data.cell.raw.image.substring(data.cell.raw.image.indexOf('/') + 1, data.cell.raw.image.indexOf(';'));
-                    doc.addImage(data.cell.raw.image, imgFormat.toUpperCase(), x, y, imgWidth, imgHeight);
-                
-                } catch(e) {
-                    console.error("Failed to add image to PDF:", e);
-                    const x = data.cell.x + 2;
-                    const y = data.cell.y + 2;
-                    doc.rect(x, y, data.cell.width - 4, data.cell.height - 4);
-                    doc.text("X", x + (data.cell.width - 4) / 2, y + (data.cell.height - 4) / 2, { align: 'center', baseline: 'middle' });
-                }
-              };
-              img.onerror = () => {
-                console.error("Failed to load image for PDF");
-                const x = data.cell.x + 2;
-                const y = data.cell.y + 2;
-                doc.rect(x, y, data.cell.width - 4, data.cell.height - 4);
-                doc.text("X", x + (data.cell.width - 4) / 2, y + (data.cell.height - 4) / 2, { align: 'center', baseline: 'middle' });
-              }
-          }
       },
     });
 
@@ -347,54 +258,55 @@ export default function Home() {
     finalY += 30;
 
     // Add Footer
+    const pageHeight = doc.internal.pageSize.height;
+    let footerY = pageHeight - 70; // Position footer from bottom
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
     
     doc.setFont(undefined, 'bold');
-    doc.text("Regards", 14, finalY);
-    finalY += 5;
+    doc.text("Regards", 14, footerY);
+    footerY += 5;
     doc.setFont(undefined, 'normal');
-    doc.text("Mohamed Abdelsalam", 14, finalY);
-    finalY += 5;
-    doc.text("Sr.Sales Consultant", 14, finalY);
-    finalY += 5;
-    doc.text("Oman 70 Building , Al-Ghubra,", 14, finalY);
-    finalY += 5;
-    doc.text("P.O Box 135 , Postal Code 103, Muscat, Oman.", 14, finalY);
-    finalY += 5;
+    doc.text("Mohamed Abdelsalam", 14, footerY);
+    footerY += 5;
+    doc.text("Sr.Sales Consultant", 14, footerY);
+    footerY += 5;
+    doc.text("Oman 70 Building , Al-Ghubra,", 14, footerY);
+    footerY += 5;
+    doc.text("P.O Box 135 , Postal Code 103, Muscat, Oman.", 14, footerY);
+    footerY += 5;
     doc.setFont(undefined, 'bold');
-    doc.text("Alshaya Enterprises®", 14, finalY);
-    finalY += 10;
+    doc.text("Alshaya Enterprises®", 14, footerY);
+    footerY += 10;
     doc.setFont(undefined, 'normal');
-    doc.text("Phone: (+968) : (+968) 24501943 Ext. 6004", 14, finalY);
-    finalY += 5;
-    doc.text("Mobile: (+968) 98901384 - 93319809", 14, finalY);
-    finalY += 5;
+    doc.text("Phone: (+968) : (+968) 24501943 Ext. 6004", 14, footerY);
+    footerY += 5;
+    doc.text("Mobile: (+968) 98901384 - 93319809", 14, footerY);
+    footerY += 5;
     
     doc.setTextColor(67, 58, 183); // Primary color for links
-    doc.textWithLink("www.alshayaenterprises.com", 14, finalY, { url: "http://www.alshayaenterprises.com" });
-    finalY += 5;
+    doc.textWithLink("www.alshayaenterprises.com", 14, footerY, { url: "http://www.alshayaenterprises.com" });
+    footerY += 5;
 
     const facebookX = 14;
-    doc.textWithLink("www.facebook.com/AlshayaEnterprises/", facebookX, finalY, { url: "http://www.facebook.com/AlshayaEnterprises/" });
+    doc.textWithLink("www.facebook.com/AlshayaEnterprises/", facebookX, footerY, { url: "http://www.facebook.com/AlshayaEnterprises/" });
     const facebookWidth = doc.getTextWidth("www.facebook.com/AlshayaEnterprises/");
     
     doc.setTextColor(0, 0, 0); // Reset color to black
-    doc.text("|", facebookX + facebookWidth + 2, finalY);
+    doc.text("|", facebookX + facebookWidth + 2, footerY);
 
     doc.setTextColor(67, 58, 183); // Primary color for links
     const instagramX = facebookX + facebookWidth + 5;
-    doc.textWithLink("www.instagram.com/alshayaenterprises/", instagramX, finalY, { url: "http://www.instagram.com/alshayaenterprises/" });
+    doc.textWithLink("www.instagram.com/alshayaenterprises/", instagramX, footerY, { url: "http://www.instagram.com/alshayaenterprises/" });
 
+    footerY += 10;
     doc.setTextColor(0, 0, 0); // Reset color to black
-    finalY += 10;
 
     const disclaimer = "Disclaimer: This communication doesn’t constitute any binding commitment on behalf of our company and is subject to contract and final board approval in accordance with our internal procedures.";
     doc.setFontSize(8);
     doc.setFont(undefined, 'italic');
     const splitDisclaimer = doc.splitTextToSize(disclaimer, doc.internal.pageSize.width - 28);
-    doc.text(splitDisclaimer, 14, finalY);
-
+    doc.text(splitDisclaimer, 14, footerY);
 
     const pdfDataUri = doc.output('datauristring');
     setPdfPreviewUrl(pdfDataUri);
@@ -543,7 +455,6 @@ export default function Home() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Sn</TableHead>
-                                <TableHead>Image</TableHead>
                                 <TableHead>Item</TableHead>
                                 <TableHead>Description</TableHead>
                                 <TableHead className="text-right">Quantity</TableHead>
@@ -556,15 +467,6 @@ export default function Home() {
                             {allBoqItems.map((item, itemIndex) => (
                                 <TableRow key={`boq-item-${itemIndex}`}>
                                     <TableCell>{itemIndex + 1}</TableCell>
-                                    <TableCell>
-                                        {item.imageUrl ? (
-                                            <Image src={item.imageUrl} alt={item.description} width={40} height={40} className="rounded-md object-cover" />
-                                        ) : (
-                                            <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-                                                <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                                            </div>
-                                        )}
-                                    </TableCell>
                                     <TableCell>{item.itemCode}</TableCell>
                                     <TableCell>{item.description}</TableCell>
                                     <TableCell className="text-right">{item.quantity}</TableCell>
@@ -639,7 +541,6 @@ export default function Home() {
                           <TableHeader>
                               <TableRow>
                                   <TableHead>Sn</TableHead>
-                                  <TableHead>Image</TableHead>
                                   <TableHead>Item</TableHead>
                                   <TableHead>Description</TableHead>
                                   <TableHead className="text-right">Quantity</TableHead>
@@ -652,15 +553,6 @@ export default function Home() {
                               {finalBoqItems.map((item, itemIndex) => (
                                   <TableRow key={`final-boq-item-${itemIndex}`}>
                                       <TableCell>{itemIndex + 1}</TableCell>
-                                      <TableCell>
-                                          {item.imageUrl ? (
-                                              <Image src={item.imageUrl} alt={item.description} width={40} height={40} className="rounded-md object-cover" />
-                                          ) : (
-                                              <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-                                                  <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                                              </div>
-                                          )}
-                                      </TableCell>
                                       <TableCell>{item.itemCode}</TableCell>
                                       <TableCell>{item.description}</TableCell>
                                       <TableCell className="text-right">{item.quantity}</TableCell>

@@ -37,7 +37,6 @@ const BOQItemSchema = z.object({
     unit: z.string().describe('The unit of measurement (e.g., sqm, nos, kg).'),
     rate: z.number().describe('The rate per unit. If not present in the document, this should be 0.'),
     amount: z.number().describe('The total amount for the item (quantity * rate). If not present in the document, this should be 0.'),
-    imageUrl: z.string().optional().describe('A URL for an image of the item.'),
 });
 
 const BOQSchema = z.object({
@@ -65,8 +64,6 @@ const extractDataPrompt = ai.definePrompt({
   input: { schema: ExtractDataInputSchema },
   output: { schema: ExtractedDataSchema },
   prompt: `You are an expert data extraction agent. Your single most important task is to analyze the provided document and extract information from any Bill of Quantities (BOQ).
-
-For each item you extract, first try to find an associated image within the document. If you find one, use it. If you cannot find a specific image for an item, you MUST generate a placeholder image URL using the format: https://picsum.photos/seed/{a-keyword-from-description}/100/100. Use a relevant keyword from the item's description to ensure a variety of images.
 
 **CRITICAL INSTRUCTION: Your job is to perform a direct, line-by-line conversion of any BOQ found in the document into the specified data format. There is ZERO TOLERANCE for errors. You MUST extract EVERY SINGLE line item. Do NOT skip, omit, summarize, or misinterpret ANY item. The 'rate' and 'amount' fields are MANDATORY. If they are not present in the document for an item, you MUST set their value to 0. Pay close attention to the table headers (like 'Item No.', 'Description', etc.) to correctly identify the start of the data rows. Process each row only once. Failure to extract every item is a catastrophic failure of your primary function.**
 
