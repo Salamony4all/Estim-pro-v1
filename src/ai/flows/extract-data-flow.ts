@@ -35,8 +35,8 @@ const BOQItemSchema = z.object({
     description: z.string().describe('The description of the work or item.'),
     quantity: z.number().describe('The quantity of the item.'),
     unit: z.string().describe('The unit of measurement (e.g., sqm, nos, kg).'),
-    rate: z.number().describe('The rate per unit. If not present in the document, this should be 0.'),
-    amount: z.number().describe('The total amount for the item (quantity * rate). If not present in the document, this should be 0.'),
+    rate: z.number().describe('The rate per unit. If not present in the document, this MUST be 0.'),
+    amount: z.number().describe('The total amount for the item (quantity * rate). If not present in the document, this MUST be 0.'),
 });
 
 const BOQSchema = z.object({
