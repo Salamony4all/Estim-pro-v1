@@ -15,6 +15,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter } from '@/components/ui/dialog';
+import type { BOQItem } from '@/ai/flows/extract-data-flow';
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -25,6 +26,7 @@ interface jsPDFWithAutoTable extends jsPDF {
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
+  const [editableBoqItems, setEditableBoqItems] = useState<BOQItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -44,6 +46,30 @@ export default function Home() {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
 
+  useEffect(() => {
+    if (extractedData?.boqs) {
+      const allItems = extractedData.boqs.flatMap(boq => boq.items);
+      setEditableBoqItems(allItems);
+    } else {
+      setEditableBoqItems([]);
+    }
+  }, [extractedData]);
+
+  const handleBoqItemChange = (index: number, field: 'rate' | 'quantity', value: string) => {
+    const numericValue = parseFloat(value) || 0;
+    const updatedItems = [...editableBoqItems];
+    const item = { ...updatedItems[index] };
+
+    if (field === 'rate') {
+        item.rate = numericValue;
+    } else if (field === 'quantity') {
+        item.quantity = numericValue;
+    }
+
+    item.amount = item.quantity * (item.rate ?? 0);
+    updatedItems[index] = item;
+    setEditableBoqItems(updatedItems);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -126,12 +152,11 @@ export default function Home() {
     }
   };
 
-  const allBoqItems = extractedData?.boqs?.flatMap(boq => boq.items) || [];
-  const originalSubtotal = allBoqItems.reduce((acc, item) => acc + (item.amount || 0), 0);
+  const originalSubtotal = editableBoqItems.reduce((acc, item) => acc + (item.amount || 0), 0);
   
   const costIncreaseFactor = (1 + netMargin / 100 + freight / 100 + customs / 100 + installation / 100);
 
-  const finalBoqItems = allBoqItems.map(item => {
+  const finalBoqItems = editableBoqItems.map(item => {
     const newRate = (item.rate || 0) * costIncreaseFactor;
     const newAmount = item.quantity * newRate;
     return {
@@ -201,22 +226,95 @@ export default function Home() {
   const handleExportPdf = async () => {
     setIsPdfGenerating(true);
     const doc = new jsPDF() as jsPDFWithAutoTable;
-    
-    // Add Header
-    doc.setFontSize(20);
-    doc.setFont(undefined, 'bold');
-    doc.text('Alshaya Enterprise™', 14, 20);
-    doc.setFont(undefined, 'normal');
+    const pageHeight = doc.internal.pageSize.height;
+    const rightAlign = doc.internal.pageSize.width - 14;
+
+    const addHeader = () => {
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text('Alshaya Enterprise™', 14, 20);
+        doc.setFont(undefined, 'normal');
+
+        doc.setFontSize(16);
+        doc.text('Bill of Quantities', 14, 45);
+        doc.setFontSize(12);
+        doc.text(`Project Name: ${projectName}`, 14, 55);
+        doc.text(`Contact Person: ${contactPerson}`, 14, 61);
+        doc.text(`Company Name: ${companyName}`, 14, 67);
+        doc.text(`Contact Number: ${contactNumber}`, 14, 73);
+    };
+
+    const addFooter = (isLastPage: boolean, finalY: number) => {
+        let footerY = pageHeight - 70;
+
+        // If it's the last page and the content leaves enough space, draw totals before footer
+        if (isLastPage) {
+            let totalsY = finalY + 10;
+            // If totals would overlap with fixed footer, draw them just after table
+            if (totalsY > footerY - 30) {
+              totalsY = finalY + 10;
+            } else { // otherwise, draw them aligned with the footer block
+              totalsY = footerY - 20;
+            }
+
+            doc.setFontSize(10);
+            doc.text(`Subtotal: ${finalSubtotal.toFixed(2)}`, rightAlign, totalsY, { align: 'right' });
+            doc.text(`VAT (${vatRate * 100}%): ${vatAmount.toFixed(2)}`, rightAlign, totalsY + 6, { align: 'right' });
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, rightAlign, totalsY + 12, { align: 'right' });
+            doc.setFont(undefined, 'normal');
+        }
 
 
-    // Add Project Details
-    doc.setFontSize(16);
-    doc.text('Bill of Quantities', 14, 45);
-    doc.setFontSize(12);
-    doc.text(`Project Name: ${projectName}`, 14, 55);
-    doc.text(`Contact Person: ${contactPerson}`, 14, 61);
-    doc.text(`Company Name: ${companyName}`, 14, 67);
-    doc.text(`Contact Number: ${contactNumber}`, 14, 73);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        
+        doc.setFont(undefined, 'bold');
+        doc.text("Regards", 14, footerY);
+        footerY += 5;
+        doc.setFont(undefined, 'normal');
+        doc.text("Mohamed Abdelsalam", 14, footerY);
+        footerY += 5;
+        doc.text("Sr.Sales Consultant", 14, footerY);
+        footerY += 5;
+        doc.text("Oman 70 Building , Al-Ghubra,", 14, footerY);
+        footerY += 5;
+        doc.text("P.O Box 135 , Postal Code 103, Muscat, Oman.", 14, footerY);
+        footerY += 5;
+        doc.setFont(undefined, 'bold');
+        doc.text("Alshaya Enterprises®", 14, footerY);
+        footerY += 10;
+        doc.setFont(undefined, 'normal');
+        doc.text("Phone: (+968) : (+968) 24501943 Ext. 6004", 14, footerY);
+        footerY += 5;
+        doc.text("Mobile: (+968) 98901384 - 93319809", 14, footerY);
+        footerY += 5;
+        
+        doc.setTextColor(67, 58, 183); // Primary color for links
+        doc.textWithLink("www.alshayaenterprises.com", 14, footerY, { url: "http://www.alshayaenterprises.com" });
+        footerY += 5;
+
+        const facebookX = 14;
+        doc.textWithLink("www.facebook.com/AlshayaEnterprises/", facebookX, footerY, { url: "http://www.facebook.com/AlshayaEnterprises/" });
+        const facebookWidth = doc.getTextWidth("www.facebook.com/AlshayaEnterprises/");
+        
+        doc.setTextColor(0, 0, 0); // Reset color to black
+        doc.text("|", facebookX + facebookWidth + 2, footerY);
+
+        doc.setTextColor(67, 58, 183); // Primary color for links
+        const instagramX = facebookX + facebookWidth + 5;
+        doc.textWithLink("www.instagram.com/alshayaenterprises/", instagramX, footerY, { url: "http://www.instagram.com/alshayaenterprises/" });
+
+        footerY += 10;
+        doc.setTextColor(0, 0, 0); // Reset color to black
+
+        const disclaimer = "Disclaimer: This communication doesn’t constitute any binding commitment on behalf of our company and is subject to contract and final board approval in accordance with our internal procedures.";
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'italic');
+        const splitDisclaimer = doc.splitTextToSize(disclaimer, doc.internal.pageSize.width - 28);
+        doc.text(splitDisclaimer, 14, footerY);
+    };
 
     // Add Table
     const tableColumn = ["Sn", "Item", "Description", "Quantity", "Unit", "Rate", "Amount"];
@@ -233,80 +331,26 @@ export default function Home() {
         ];
     });
 
+    let finalY = 80;
+
     doc.autoTable({
-      startY: 80,
-      head: [tableColumn],
-      body: tableRows,
-      theme: 'striped',
-      headStyles: { fillColor: [75, 85, 99] }, // gray-600
-      styles: { fontSize: 8, valign: 'middle' },
-      columnStyles: {
-          0: { cellWidth: 8 }, // Sn column
-      },
+        startY: finalY,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [75, 85, 99] }, // gray-600
+        styles: { fontSize: 8, valign: 'middle' },
+        columnStyles: {
+            0: { cellWidth: 8 }, // Sn column
+        },
+        didDrawPage: (data) => {
+            addHeader();
+            const isLastPage = data.pageNumber === doc.getNumberOfPages();
+            finalY = (doc as any).autoTable.previous.finalY;
+            addFooter(isLastPage, finalY);
+        },
+        margin: { top: 80, bottom: 90 } // Adjust bottom margin to make space for footer
     });
-
-    // Add Totals
-    let finalY = (doc as any).autoTable.previous.finalY;
-    const rightAlign = doc.internal.pageSize.width - 14;
-    doc.setFontSize(10);
-    doc.text(`Subtotal: ${finalSubtotal.toFixed(2)}`, rightAlign, finalY + 10, { align: 'right' });
-    doc.text(`VAT (${vatRate * 100}%): ${vatAmount.toFixed(2)}`, rightAlign, finalY + 16, { align: 'right' });
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, rightAlign, finalY + 22, { align: 'right' });
-    
-    finalY += 30;
-
-    // Add Footer
-    const pageHeight = doc.internal.pageSize.height;
-    let footerY = pageHeight - 70; // Position footer from bottom
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    
-    doc.setFont(undefined, 'bold');
-    doc.text("Regards", 14, footerY);
-    footerY += 5;
-    doc.setFont(undefined, 'normal');
-    doc.text("Mohamed Abdelsalam", 14, footerY);
-    footerY += 5;
-    doc.text("Sr.Sales Consultant", 14, footerY);
-    footerY += 5;
-    doc.text("Oman 70 Building , Al-Ghubra,", 14, footerY);
-    footerY += 5;
-    doc.text("P.O Box 135 , Postal Code 103, Muscat, Oman.", 14, footerY);
-    footerY += 5;
-    doc.setFont(undefined, 'bold');
-    doc.text("Alshaya Enterprises®", 14, footerY);
-    footerY += 10;
-    doc.setFont(undefined, 'normal');
-    doc.text("Phone: (+968) : (+968) 24501943 Ext. 6004", 14, footerY);
-    footerY += 5;
-    doc.text("Mobile: (+968) 98901384 - 93319809", 14, footerY);
-    footerY += 5;
-    
-    doc.setTextColor(67, 58, 183); // Primary color for links
-    doc.textWithLink("www.alshayaenterprises.com", 14, footerY, { url: "http://www.alshayaenterprises.com" });
-    footerY += 5;
-
-    const facebookX = 14;
-    doc.textWithLink("www.facebook.com/AlshayaEnterprises/", facebookX, footerY, { url: "http://www.facebook.com/AlshayaEnterprises/" });
-    const facebookWidth = doc.getTextWidth("www.facebook.com/AlshayaEnterprises/");
-    
-    doc.setTextColor(0, 0, 0); // Reset color to black
-    doc.text("|", facebookX + facebookWidth + 2, footerY);
-
-    doc.setTextColor(67, 58, 183); // Primary color for links
-    const instagramX = facebookX + facebookWidth + 5;
-    doc.textWithLink("www.instagram.com/alshayaenterprises/", instagramX, footerY, { url: "http://www.instagram.com/alshayaenterprises/" });
-
-    footerY += 10;
-    doc.setTextColor(0, 0, 0); // Reset color to black
-
-    const disclaimer = "Disclaimer: This communication doesn’t constitute any binding commitment on behalf of our company and is subject to contract and final board approval in accordance with our internal procedures.";
-    doc.setFontSize(8);
-    doc.setFont(undefined, 'italic');
-    const splitDisclaimer = doc.splitTextToSize(disclaimer, doc.internal.pageSize.width - 28);
-    doc.text(splitDisclaimer, 14, footerY);
 
     const pdfDataUri = doc.output('datauristring');
     setPdfPreviewUrl(pdfDataUri);
@@ -444,10 +488,11 @@ export default function Home() {
               </Card>
             ))}
             
-            {allBoqItems.length > 0 && (
+            {editableBoqItems.length > 0 && (
               <Card>
                 <CardHeader>
                    <CardTitle>Original Bill of Quantities</CardTitle>
+                   <CardDescription>You can edit the quantity and rate fields below.</CardDescription>
                    {extractedData.boqs?.[0]?.description && <CardDescription>{extractedData.boqs?.[0].description}</CardDescription>}
                 </CardHeader>
                 <CardContent>
@@ -464,14 +509,28 @@ export default function Home() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {allBoqItems.map((item, itemIndex) => (
+                            {editableBoqItems.map((item, itemIndex) => (
                                 <TableRow key={`boq-item-${itemIndex}`}>
                                     <TableCell>{itemIndex + 1}</TableCell>
                                     <TableCell>{item.itemCode}</TableCell>
                                     <TableCell>{item.description}</TableCell>
-                                    <TableCell className="text-right">{item.quantity}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Input
+                                          type="number"
+                                          value={item.quantity}
+                                          onChange={(e) => handleBoqItemChange(itemIndex, 'quantity', e.target.value)}
+                                          className="text-right"
+                                        />
+                                    </TableCell>
                                     <TableCell>{item.unit}</TableCell>
-                                    <TableCell className="text-right">{item.rate?.toFixed(2) || '-'}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Input
+                                            type="number"
+                                            value={item.rate ?? 0}
+                                            onChange={(e) => handleBoqItemChange(itemIndex, 'rate', e.target.value)}
+                                            className="text-right"
+                                        />
+                                    </TableCell>
                                     <TableCell className="text-right">{item.amount?.toFixed(2) || '-'}</TableCell>
                                 </TableRow>
                             ))}
@@ -487,7 +546,7 @@ export default function Home() {
               </Card>
             )}
 
-            {allBoqItems.length > 0 && (
+            {editableBoqItems.length > 0 && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Cost &amp; Margin Preferences</CardTitle>
@@ -529,7 +588,7 @@ export default function Home() {
                 </Card>
             )}
 
-            {showFinalBoq && allBoqItems.length > 0 && (
+            {showFinalBoq && editableBoqItems.length > 0 && (
               <>
                 <Card>
                   <CardHeader>

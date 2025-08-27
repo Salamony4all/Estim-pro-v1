@@ -38,6 +38,8 @@ const BOQItemSchema = z.object({
     rate: z.number().describe('The rate per unit. If not present in the document, this MUST be 0.'),
     amount: z.number().describe('The total amount for the item (quantity * rate). If not present in the document, this MUST be 0.'),
 });
+export type BOQItem = z.infer<typeof BOQItemSchema>;
+
 
 const BOQSchema = z.object({
     title: z.string().optional().describe('The title of the Bill of Quantities.'),
