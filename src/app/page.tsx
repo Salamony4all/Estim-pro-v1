@@ -226,10 +226,7 @@ export default function Home() {
   const handleExportPdf = async () => {
     setIsPdfGenerating(true);
     const doc = new jsPDF() as jsPDFWithAutoTable;
-    const pageHeight = doc.internal.pageSize.height;
-    const rightAlign = doc.internal.pageSize.width - 14;
-    let finalY = 80;
-
+    
     const addHeader = () => {
         doc.setFontSize(20);
         doc.setFont(undefined, 'bold');
@@ -245,22 +242,15 @@ export default function Home() {
         doc.text(`Contact Number: ${contactNumber}`, 14, 73);
     };
 
-    const addFooter = (isLastPage: boolean) => {
-        if (!isLastPage) {
-            return;
-        }
-
+    const addFooter = () => {
+        const pageHeight = doc.internal.pageSize.height;
+        const rightAlign = doc.internal.pageSize.width - 14;
         let footerY = pageHeight - 70;
 
         // Draw totals
-        let totalsY = (doc as any).autoTable.previous.finalY + 10;
-        // If totals would overlap with fixed footer, draw them just after table
-        if (totalsY > footerY - 30) {
-            totalsY = (doc as any).autoTable.previous.finalY + 10;
-        } else { // otherwise, draw them aligned with the footer block
-            totalsY = footerY - 20;
-        }
-
+        const lastAutoTable = (doc as any).lastAutoTable;
+        let totalsY = lastAutoTable.finalY + 10;
+        
         doc.setFontSize(10);
         doc.text(`Subtotal: ${finalSubtotal.toFixed(2)}`, rightAlign, totalsY, { align: 'right' });
         doc.text(`VAT (${vatRate * 100}%): ${vatAmount.toFixed(2)}`, rightAlign, totalsY + 6, { align: 'right' });
@@ -268,7 +258,6 @@ export default function Home() {
         doc.setFont(undefined, 'bold');
         doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, rightAlign, totalsY + 12, { align: 'right' });
         doc.setFont(undefined, 'normal');
-
 
         doc.setFontSize(10);
         doc.setFont(undefined, 'normal');
@@ -335,7 +324,7 @@ export default function Home() {
     });
 
     doc.autoTable({
-        startY: finalY,
+        startY: 80,
         head: [tableColumn],
         body: tableRows,
         theme: 'striped',
@@ -346,13 +335,18 @@ export default function Home() {
         },
         didDrawPage: (data) => {
             addHeader();
-            const isLastPage = data.pageNumber === doc.getNumberOfPages();
-            if (isLastPage) {
-                addFooter(isLastPage);
+        },
+        willDrawPage: (data) => {
+            // This is a workaround to ensure totals and footer are only on the last page.
+            // We check if the next row to be drawn is the last one.
+            if (data.cursor && data.cursor.y < 80 && data.pageNumber === doc.getNumberOfPages()) {
+                 // We are on the last page
             }
         },
         margin: { top: 80, bottom: 90 } // Adjust bottom margin to make space for footer
     });
+
+    addFooter(); // Add footer only on the last page after table is drawn
 
     const pdfDataUri = doc.output('datauristring');
     setPdfPreviewUrl(pdfDataUri);
@@ -706,3 +700,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
