@@ -244,20 +244,7 @@ export default function Home() {
 
     const addFooter = () => {
         const pageHeight = doc.internal.pageSize.height;
-        const rightAlign = doc.internal.pageSize.width - 14;
         let footerY = pageHeight - 70;
-
-        // Draw totals
-        const lastAutoTable = (doc as any).lastAutoTable;
-        let totalsY = lastAutoTable.finalY + 10;
-        
-        doc.setFontSize(10);
-        doc.text(`Subtotal: ${finalSubtotal.toFixed(2)}`, rightAlign, totalsY, { align: 'right' });
-        doc.text(`VAT (${vatRate * 100}%): ${vatAmount.toFixed(2)}`, rightAlign, totalsY + 6, { align: 'right' });
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, rightAlign, totalsY + 12, { align: 'right' });
-        doc.setFont(undefined, 'normal');
 
         doc.setFontSize(10);
         doc.setFont(undefined, 'normal');
@@ -333,20 +320,45 @@ export default function Home() {
         columnStyles: {
             0: { cellWidth: 8 }, // Sn column
         },
+        pageBreak: 'avoid-all',
         didDrawPage: (data) => {
             addHeader();
-        },
-        willDrawPage: (data) => {
-            // This is a workaround to ensure totals and footer are only on the last page.
-            // We check if the next row to be drawn is the last one.
-            if (data.cursor && data.cursor.y < 80 && data.pageNumber === doc.getNumberOfPages()) {
-                 // We are on the last page
+            // Add footer only on the last page
+            if (data.pageNumber === (doc as any).lastAutoTable.pageCount) {
+                addFooter();
             }
         },
-        margin: { top: 80, bottom: 90 } // Adjust bottom margin to make space for footer
+        didParseCell: (data) => {
+            // This hook is called after the cell content is parsed.
+            // We can check here if we are on the last cell of the last row.
+            const isLastPage = data.pageNumber === doc.getNumberOfPages();
+            const isLastRow = data.row.index === tableRows.length - 1;
+            
+            if (isLastPage && isLastRow) {
+                // We're at the end of the table on the last page.
+                // Now we can safely add totals.
+            }
+        },
+        margin: { top: 80, bottom: 90 }, // Adjust bottom margin to make space for footer
     });
+    
+    const lastAutoTable = (doc as any).lastAutoTable;
+    if (lastAutoTable) {
+        const rightAlign = doc.internal.pageSize.width - 14;
+        let totalsY = lastAutoTable.finalY + 10;
 
-    addFooter(); // Add footer only on the last page after table is drawn
+        // Draw totals only on the last page
+        if (doc.getNumberOfPages() === lastAutoTable.pageCount) {
+             doc.setFontSize(10);
+             doc.text(`Subtotal: ${finalSubtotal.toFixed(2)}`, rightAlign, totalsY, { align: 'right' });
+             doc.text(`VAT (${vatRate * 100}%): ${vatAmount.toFixed(2)}`, rightAlign, totalsY + 6, { align: 'right' });
+             doc.setFontSize(12);
+             doc.setFont(undefined, 'bold');
+             doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, rightAlign, totalsY + 12, { align: 'right' });
+             doc.setFont(undefined, 'normal');
+        }
+    }
+
 
     const pdfDataUri = doc.output('datauristring');
     setPdfPreviewUrl(pdfDataUri);
