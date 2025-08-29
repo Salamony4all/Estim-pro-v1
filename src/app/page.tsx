@@ -16,6 +16,7 @@ import 'jspdf-autotable';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import type { BOQItem } from '@/ai/flows/extract-data-flow';
+import { format } from 'date-fns';
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -42,6 +43,9 @@ export default function Home() {
   const [contactPerson, setContactPerson] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [referenceNo, setReferenceNo] = useState('');
+
 
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
@@ -199,6 +203,8 @@ export default function Home() {
     csvContent += `Contact Person,${escapeCsvCell(contactPerson)}\n`;
     csvContent += `Company Name,${escapeCsvCell(companyName)}\n`;
     csvContent += `Contact Number,${escapeCsvCell(contactNumber)}\n`;
+    csvContent += `Date,${escapeCsvCell(date)}\n`;
+    csvContent += `Reference No,${escapeCsvCell(referenceNo)}\n`;
     csvContent += '\n';
 
     // Table
@@ -226,73 +232,113 @@ export default function Home() {
   const handleExportPdf = async () => {
     setIsPdfGenerating(true);
     const doc = new jsPDF() as jsPDFWithAutoTable;
+    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+
     
     const addHeader = () => {
-        doc.setFontSize(20);
+        // Logo
+        doc.setFontSize(22);
         doc.setFont(undefined, 'bold');
-        doc.text('Alshaya Enterprise™', 14, 20);
+        doc.setTextColor(26, 115, 232); // A nice blue color for the logo
+        doc.text('A', pageWidth / 2, 20, { align: 'center' });
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text('الشايع للمشاريع', pageWidth / 2, 26, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
+        doc.text('ALSHAYA ENTERPRISES', pageWidth / 2, 32, { align: 'center' });
 
-        doc.setFontSize(16);
-        doc.text('Bill of Quantities', 14, 45);
-        doc.setFontSize(12);
-        doc.text(`Project Name: ${projectName}`, 14, 55);
-        doc.text(`Contact Person: ${contactPerson}`, 14, 61);
-        doc.text(`Company Name: ${companyName}`, 14, 67);
-        doc.text(`Contact Number: ${contactNumber}`, 14, 73);
+        // Left side project details
+        doc.setFontSize(10);
+        const leftX = 14;
+        let leftY = 45;
+        doc.setFont(undefined, 'bold');
+        doc.text('Project Name:', leftX, leftY);
+        doc.setFont(undefined, 'normal');
+        doc.text(projectName, leftX + 35, leftY);
+        leftY += 6;
+        doc.setFont(undefined, 'bold');
+        doc.text('Contact Person:', leftX, leftY);
+        doc.setFont(undefined, 'normal');
+        doc.text(contactPerson, leftX + 35, leftY);
+        leftY += 6;
+        doc.setFont(undefined, 'bold');
+        doc.text('Company Name:', leftX, leftY);
+        doc.setFont(undefined, 'normal');
+        doc.text(companyName, leftX + 35, leftY);
+        leftY += 6;
+        doc.setFont(undefined, 'bold');
+        doc.text('Number:', leftX, leftY);
+        doc.setFont(undefined, 'normal');
+        doc.text(contactNumber, leftX + 35, leftY);
+
+        // Right side date and ref
+        const rightX = pageWidth - 14;
+        let rightY = 45;
+        doc.setFont(undefined, 'bold');
+        doc.text('Date:', rightX, rightY, { align: 'right' });
+        doc.setFont(undefined, 'normal');
+        doc.text(date, rightX - 12, rightY, { align: 'right' });
+        rightY += 6;
+        doc.setFont(undefined, 'bold');
+        doc.text('Reference No:', rightX, rightY, { align: 'right' });
+        doc.setFont(undefined, 'normal');
+        doc.text(referenceNo, rightX - 25, rightY, { align: 'right' });
     };
 
     const addFooter = () => {
-        const pageHeight = doc.internal.pageSize.height;
-        let footerY = pageHeight - 70;
+        let footerY = pageHeight - 55;
+        const leftX = 14;
 
         doc.setFontSize(10);
         doc.setFont(undefined, 'normal');
         
         doc.setFont(undefined, 'bold');
-        doc.text("Regards", 14, footerY);
+        doc.text("Regards", leftX, footerY);
         footerY += 5;
         doc.setFont(undefined, 'normal');
-        doc.text("Mohamed Abdelsalam", 14, footerY);
+        doc.text("Mohamed Abdelsalam", leftX, footerY);
         footerY += 5;
-        doc.text("Sr.Sales Consultant", 14, footerY);
+        doc.text("Sr.Sales Consultant", leftX, footerY);
         footerY += 5;
-        doc.text("Oman 70 Building , Al-Ghubra,", 14, footerY);
+        doc.text("Oman 70 Building , Al-Ghubra,", leftX, footerY);
         footerY += 5;
-        doc.text("P.O Box 135 , Postal Code 103, Muscat, Oman.", 14, footerY);
+        doc.text("P.O Box 135 , Postal Code 103, Muscat, Oman.", leftX, footerY);
         footerY += 5;
         doc.setFont(undefined, 'bold');
-        doc.text("Alshaya Enterprises®", 14, footerY);
-        footerY += 10;
+        doc.text("Alshaya Enterprises®", leftX, footerY);
+        footerY += 8;
         doc.setFont(undefined, 'normal');
-        doc.text("Phone: (+968) : (+968) 24501943 Ext. 6004", 14, footerY);
+        doc.text("Phone: (+968): (+968) 24501943 Ext. 6004", leftX, footerY);
         footerY += 5;
-        doc.text("Mobile: (+968) 98901384 - 93319809", 14, footerY);
+        doc.text("Mobile: (+968) 98901384 - 93319809", leftX, footerY);
         footerY += 5;
         
-        doc.setTextColor(67, 58, 183); // Primary color for links
-        doc.textWithLink("www.alshayaenterprises.com", 14, footerY, { url: "http://www.alshayaenterprises.com" });
+        doc.setTextColor(26, 115, 232); // Link color
+        doc.textWithLink("www.alshayaenterprises.com", leftX, footerY, { url: "http://www.alshayaenterprises.com" });
+        const link1Width = doc.getTextWidth("www.alshayaenterprises.com");
+
         footerY += 5;
 
-        const facebookX = 14;
-        doc.textWithLink("www.facebook.com/AlshayaEnterprises/", facebookX, footerY, { url: "http://www.facebook.com/AlshayaEnterprises/" });
-        const facebookWidth = doc.getTextWidth("www.facebook.com/AlshayaEnterprises/");
+        doc.textWithLink("www.facebook.com/AlshayaEnterprises/", leftX, footerY, { url: "http://www.facebook.com/AlshayaEnterprises/" });
+        const link2Width = doc.getTextWidth("www.facebook.com/AlshayaEnterprises/");
         
-        doc.setTextColor(0, 0, 0); // Reset color to black
-        doc.text("|", facebookX + facebookWidth + 2, footerY);
+        doc.setTextColor(0, 0, 0); // Reset color
+        doc.text("|", leftX + link2Width + 2, footerY);
 
-        doc.setTextColor(67, 58, 183); // Primary color for links
-        const instagramX = facebookX + facebookWidth + 5;
-        doc.textWithLink("www.instagram.com/alshayaenterprises/", instagramX, footerY, { url: "http://www.instagram.com/alshayaenterprises/" });
+        doc.setTextColor(26, 115, 232); // Link color
+        doc.textWithLink("www.instagram.com/alshayaenterprises/", leftX + link2Width + 5, footerY, { url: "http://www.instagram.com/alshayaenterprises/" });
 
         footerY += 10;
-        doc.setTextColor(0, 0, 0); // Reset color to black
+        doc.setTextColor(0, 0, 0); // Reset color
 
         const disclaimer = "Disclaimer: This communication doesn’t constitute any binding commitment on behalf of our company and is subject to contract and final board approval in accordance with our internal procedures.";
         doc.setFontSize(8);
         doc.setFont(undefined, 'italic');
-        const splitDisclaimer = doc.splitTextToSize(disclaimer, doc.internal.pageSize.width - 28);
-        doc.text(splitDisclaimer, 14, footerY);
+        const splitDisclaimer = doc.splitTextToSize(disclaimer, pageWidth - 28);
+        doc.text(splitDisclaimer, leftX, footerY);
     };
 
     // Add Table
@@ -309,54 +355,76 @@ export default function Home() {
             item.amount?.toFixed(2) || '-'
         ];
     });
+    
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('COST SUMMARY', pageWidth / 2, 85, { align: 'center'});
 
     doc.autoTable({
-        startY: 80,
+        startY: 90,
         head: [tableColumn],
         body: tableRows,
-        theme: 'striped',
-        headStyles: { fillColor: [75, 85, 99] }, // gray-600
-        styles: { fontSize: 8, valign: 'middle' },
-        columnStyles: {
-            0: { cellWidth: 8 }, // Sn column
+        theme: 'grid',
+        headStyles: { 
+            fillColor: [55, 65, 81], // gray-700
+            textColor: 255,
+            fontStyle: 'bold'
         },
-        pageBreak: 'avoid-all',
+        styles: { 
+            fontSize: 9, 
+            valign: 'middle',
+            cellPadding: 2,
+        },
+        columnStyles: {
+            0: { cellWidth: 10, halign: 'center' }, // Sn
+            1: { cellWidth: 20, halign: 'center' }, // Item
+            2: { cellWidth: 'auto' }, // Description
+            3: { cellWidth: 18, halign: 'right' }, // Quantity
+            4: { cellWidth: 15, halign: 'center' }, // Unit
+            5: { cellWidth: 25, halign: 'right' }, // Rate
+            6: { cellWidth: 25, halign: 'right' }, // Amount
+        },
         didDrawPage: (data) => {
             addHeader();
-            // Add footer only on the last page
-            if (data.pageNumber === (doc as any).lastAutoTable.pageCount) {
-                addFooter();
-            }
+            addFooter();
         },
-        didParseCell: (data) => {
-            // This hook is called after the cell content is parsed.
-            // We can check here if we are on the last cell of the last row.
-            const isLastPage = data.pageNumber === doc.getNumberOfPages();
-            const isLastRow = data.row.index === tableRows.length - 1;
-            
-            if (isLastPage && isLastRow) {
-                // We're at the end of the table on the last page.
-                // Now we can safely add totals.
-            }
+        willDrawCell: (data) => {
+             if (data.section === 'body' && (data.column.index === 5 || data.column.index === 6)) {
+                 // format rate and amount columns
+                data.cell.text = Number(data.cell.text).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+             }
         },
-        margin: { top: 80, bottom: 90 }, // Adjust bottom margin to make space for footer
+        margin: { top: 40, bottom: 60 }, 
     });
     
     const lastAutoTable = (doc as any).lastAutoTable;
     if (lastAutoTable) {
-        const rightAlign = doc.internal.pageSize.width - 14;
-        let totalsY = lastAutoTable.finalY + 10;
-
-        // Draw totals only on the last page
-        if (doc.getNumberOfPages() === lastAutoTable.pageCount) {
-             doc.setFontSize(10);
-             doc.text(`Subtotal: ${finalSubtotal.toFixed(2)}`, rightAlign, totalsY, { align: 'right' });
-             doc.text(`VAT (${vatRate * 100}%): ${vatAmount.toFixed(2)}`, rightAlign, totalsY + 6, { align: 'right' });
-             doc.setFontSize(12);
-             doc.setFont(undefined, 'bold');
-             doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, rightAlign, totalsY + 12, { align: 'right' });
-             doc.setFont(undefined, 'normal');
+        const rightAlign = pageWidth - 14;
+        let totalsY = lastAutoTable.finalY + 8;
+        
+        // Check if totals would be drawn off-page and add a new page if so
+        if (totalsY > pageHeight - 30) {
+            doc.addPage();
+            addHeader();
+            addFooter();
+            totalsY = 40; // Reset Y position on new page
         }
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Subtotal:`, rightAlign - 30, totalsY, { align: 'right' });
+        doc.text(`${finalSubtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightAlign, totalsY, { align: 'right' });
+
+        totalsY += 6;
+        doc.text(`VAT (${vatRate * 100}%):`, rightAlign - 30, totalsY, { align: 'right' });
+        doc.text(`${vatAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightAlign, totalsY, { align: 'right' });
+        
+        totalsY += 6;
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text(`Grand Total:`, rightAlign - 30, totalsY, { align: 'right' });
+        doc.text(`${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightAlign, totalsY, { align: 'right' });
+        doc.setFont(undefined, 'normal');
     }
 
 
@@ -463,6 +531,14 @@ export default function Home() {
                 <div className="space-y-2">
                   <Label htmlFor="contact-number">Contact Number</Label>
                   <Input id="contact-number" value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} placeholder="Enter contact number" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date">Date</Label>
+                  <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reference-no">Reference No.</Label>
+                  <Input id="reference-no" value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="Enter reference no." />
                 </div>
               </CardContent>
             </Card>
@@ -712,5 +788,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
