@@ -5,3 +5,22 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+  # Pass secrets from Secret Manager to your app as environment variables.
+  # The backend service account (see "serviceAccount" below) must have
+  # "Secret Manager Secret Accessor" permissions for these secrets.
+  # You can create secrets in the Google Cloud console:
+  # https://console.cloud.google.com/security/secret-manager
+  env:
+    - variable: GCS_BUCKET_NAME
+      secret: GCS_BUCKET_NAME
+    - variable: GOOGLE_APPLICATION_CREDENTIALS_CONTENT
+      secret: GOOGLE_APPLICATION_CREDENTIALS_CONTENT
+    - variable: GCLOUD_PROJECT
+      secret: GCLOUD_PROJECT
+
+# The service account your App Hosting backend runs as.
+# This service account must have permission to access the secrets you've
+# defined in the "runConfig.env" section above.
+# If you don't specify a service account, your backend runs as the default
+# App Engine service account.
+# serviceAccount: your-service-account@your-project-id.iam.gserviceaccount.com
