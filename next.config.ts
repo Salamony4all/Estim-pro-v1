@@ -25,14 +25,6 @@ const nextConfig: NextConfig = {
     ],
     unoptimized: true,
   },
-  async rewrites() {
-    return [
-      {
-        source: '/index.html',
-        destination: '/api/workaround', // a dummy endpoint that does nothing
-      },
-    ];
-  },
 };
 
 export default nextConfig;
