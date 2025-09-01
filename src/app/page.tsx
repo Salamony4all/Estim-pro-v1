@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { extractData } from './actions';
 import type { ExtractedData } from '@/ai/flows/extract-data-flow';
-import { Download, Loader2, FileText, UploadCloud, X } from 'lucide-react';
+import { Download, Loader2, FileText, UploadCloud, X, ArrowDown, BarChart, FileJson, Cpu } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Progress } from '@/components/ui/progress';
@@ -49,6 +49,8 @@ export default function Home() {
 
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+
+  const toolRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (extractedData?.boqs) {
@@ -444,10 +446,73 @@ export default function Home() {
     document.body.removeChild(link);
   }
 
+  const scrollToTool = () => {
+    toolRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-screen p-4 sm:p-8 bg-background">
-      <div className="w-full max-w-4xl">
+    <div className="flex flex-col items-center justify-start min-h-screen bg-background">
+      {/* Hero Section */}
+      <section className="w-full bg-slate-50">
+        <div className="container mx-auto grid md:grid-cols-2 items-center justify-center gap-8 py-20 text-center md:text-left">
+          <div className="space-y-6">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">
+              Automate Your Bill of Quantities with AI
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Welcome to <span className="font-semibold text-primary">Estimation Pro</span> by Alshaya Enterprise™. Upload your document, and our AI will instantly extract the Bill of Quantities, saving you time and reducing errors.
+            </p>
+            <Button size="lg" onClick={scrollToTool}>
+              Get Started
+              <ArrowDown className="ml-2 h-5 w-5" />
+            </Button>
+          </div>
+          <div className="hidden md:flex justify-center">
+            <img 
+              src="https://picsum.photos/600/400" 
+              alt="Hero Illustration" 
+              className="rounded-lg shadow-xl"
+              data-ai-hint="construction blueprint"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="w-full py-20">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold">How It Works</h2>
+            <p className="text-muted-foreground mt-2">A simple, three-step process to streamline your estimations.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8 text-center">
+            <div className="flex flex-col items-center space-y-3">
+              <div className="p-4 bg-primary/10 rounded-full">
+                <UploadCloud className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold">1. Upload Document</h3>
+              <p className="text-muted-foreground">Drag and drop or select any document (PDF, image) containing your Bill of Quantities.</p>
+            </div>
+            <div className="flex flex-col items-center space-y-3">
+              <div className="p-4 bg-primary/10 rounded-full">
+                <Cpu className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold">2. AI Extraction</h3>
+              <p className="text-muted-foreground">Our intelligent agent analyzes the document and accurately extracts all line items.</p>
+            </div>
+            <div className="flex flex-col items-center space-y-3">
+              <div className="p-4 bg-primary/10 rounded-full">
+                <Download className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold">3. Export & Share</h3>
+              <p className="text-muted-foreground">Review, adjust margins, and export your final BOQ as a professional PDF or CSV.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div ref={toolRef} className="w-full max-w-4xl p-4 sm:p-8">
         <Card className="w-full">
           <CardHeader className="items-center text-center">
             <h1 className="text-3xl font-bold">Alshaya Enterprise™</h1>
