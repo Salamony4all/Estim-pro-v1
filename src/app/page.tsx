@@ -732,7 +732,7 @@ export default function Home() {
                         </div>
                     </CardContent>
                     <CardFooter className="justify-end">
-                        <Button onClick={() => setShowFinalBoq(true)}>Generate BOQ</Button>
+                        <Button onClick={() => setShowFinalBoq(true)}>Generate Offer</Button>
                     </CardFooter>
                 </Card>
             )}
