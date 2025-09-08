@@ -458,10 +458,10 @@ export default function Home() {
         <div className="container mx-auto grid md:grid-cols-2 items-center justify-center gap-8 py-20 text-center md:text-left">
           <div className="space-y-6">
             <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">
-              Automate Your Bill of Quantities with AI
+              Automate Your Offers and Proposals with AI
             </h1>
             <p className="text-lg text-muted-foreground">
-              Welcome to <span className="font-semibold text-primary">Estimation Pro</span> by Alshaya Enterprise™. Upload your document, and our AI will instantly extract the Bill of Quantities, saving you time and reducing errors.
+              Welcome to <span className="font-semibold text-primary">Estimation Pro</span> by Alshaya Enterprise™. Upload your document, and our AI will instantly extract key information, saving you time and reducing errors.
             </p>
             <Button size="lg" onClick={scrollToTool}>
               Get Started
