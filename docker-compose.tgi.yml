@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  tgi:
+    image: ghcr.io/huggingface/text-generation-inference:latest
+    container_name: estim_tgi
+    environment:
+      - DISABLE_TELEMETRY=1
+    ports:
+      - '8080:8080'
+    command: ["--model-id", "gpt2", "--no-stream"]
+    restart: unless-stopped

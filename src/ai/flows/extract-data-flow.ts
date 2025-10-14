@@ -37,6 +37,7 @@ const BOQItemSchema = z.object({
     unit: z.string().describe('The unit of measurement (e.g., sqm, nos, kg).'),
     rate: z.number().describe('The rate per unit. If not present in the document, this MUST be 0.'),
     amount: z.number().describe('The total amount for the item (quantity * rate). If not present in the document, this MUST be 0.'),
+  confidence: z.number().optional().describe('Optional confidence score 0..1 for the extracted item.'),
 });
 export type BOQItem = z.infer<typeof BOQItemSchema>;
 

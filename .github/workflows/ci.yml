@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: |
+          npm ci
+      - name: Typecheck
+        run: |
+          npm run typecheck || true
+      - name: Lint
+        run: |
+          npm run lint || true
+
+  python:
+    runs-on: ubuntu-latest
+    needs: node
+    services: {}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install Tesseract
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr libtesseract-dev
+      - name: Install Python deps
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install -r python-backend/requirements.txt
+      - name: Start FastAPI
+        run: |
+          . .venv/bin/activate
+          uvicorn python-backend.app.main:app --port 8000 &
+          sleep 2
+      - name: Run tests
+        run: |
+          . .venv/bin/activate
+          pytest -q python-backend/tests

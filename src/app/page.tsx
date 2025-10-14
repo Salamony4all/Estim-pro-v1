@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { extractData } from './actions';
+import { extractData, type ExtractionMethod } from './actions';
 import type { ExtractedData } from '@/ai/flows/extract-data-flow';
 import { Download, Loader2, FileText, UploadCloud, X, ArrowDown, BarChart, FileJson, Cpu } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -49,6 +49,7 @@ export default function Home() {
 
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [extractionMethod, setExtractionMethod] = useState<ExtractionMethod>('auto');
 
   const toolRef = useRef<HTMLDivElement>(null);
 
@@ -133,7 +134,7 @@ export default function Home() {
       reader.onloadend = async () => {
         const dataUri = reader.result as string;
         try {
-          const result = await extractData({ fileDataUri: dataUri });
+          const result = await extractData({ fileDataUri: dataUri }, { method: extractionMethod });
           if (result && (result.boqs?.length || result.tables?.length)) {
             setExtractedData(result);
           } else {
@@ -239,9 +240,10 @@ export default function Home() {
 
     
     const addHeader = () => {
-        // Logo
-        doc.setFontSize(22);
-        doc.setFont(undefined, 'bold');
+  // Logo
+  doc.setFontSize(22);
+  // Use default font family and style names expected by jspdf
+  doc.setFont('helvetica', 'bold');
         doc.setTextColor(26, 115, 232); // A nice blue color for the logo
         doc.text('A', pageWidth / 2, 20, { align: 'center' });
         doc.setFontSize(8);
@@ -337,8 +339,8 @@ export default function Home() {
         doc.setTextColor(0, 0, 0); // Reset color
 
         const disclaimer = "Disclaimer: This communication doesn’t constitute any binding commitment on behalf of our company and is subject to contract and final board approval in accordance with our internal procedures.";
-        doc.setFontSize(8);
-        doc.setFont(undefined, 'italic');
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'italic');
         const splitDisclaimer = doc.splitTextToSize(disclaimer, pageWidth - 28);
         doc.text(splitDisclaimer, leftX, footerY);
     };
@@ -386,16 +388,16 @@ export default function Home() {
             5: { cellWidth: 25, halign: 'right' }, // Rate
             6: { cellWidth: 25, halign: 'right' }, // Amount
         },
-        didDrawPage: (data) => {
-            addHeader();
-            addFooter();
-        },
-        willDrawCell: (data) => {
-             if (data.section === 'body' && (data.column.index === 5 || data.column.index === 6)) {
-                 // format rate and amount columns
-                data.cell.text = Number(data.cell.text).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-             }
-        },
+    didDrawPage: (data: any) => {
+      addHeader();
+      addFooter();
+    },
+    willDrawCell: (data: any) => {
+       if (data.section === 'body' && (data.column.index === 5 || data.column.index === 6)) {
+         // format rate and amount columns
+        data.cell.text = Number(data.cell.text).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+       }
+    },
         margin: { top: 40, bottom: 60 }, 
     });
     
@@ -412,8 +414,8 @@ export default function Home() {
             totalsY = 40; // Reset Y position on new page
         }
 
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
         doc.text(`Subtotal:`, rightAlign - 30, totalsY, { align: 'right' });
         doc.text(`${finalSubtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightAlign, totalsY, { align: 'right' });
 
@@ -561,6 +563,27 @@ export default function Home() {
                   )}
                 </Button>
             </div>
+              <div className="mt-4 flex items-center gap-3">
+                <Label id="extraction-method-label" htmlFor="extraction-method">Method</Label>
+                <select
+                  id="extraction-method"
+                  aria-labelledby="extraction-method-label"
+                  title="Extraction method"
+                  value={extractionMethod}
+                  onChange={(e) => setExtractionMethod(e.target.value as ExtractionMethod)}
+                  className="px-3 py-1 border rounded"
+                >
+                  <option value="auto">Auto (env/default)</option>
+                  <option value="best">Best (recommended)</option>
+                  <option value="genkit">Genkit (in-app)</option>
+                  <option value="py-mock">Python (mock)</option>
+                  <option value="py-genai">Python (GenAI)</option>
+                  <option value="py-llama">Python (Llama)</option>
+                  <option value="py-tgi">Python (TGI - local HTTP)</option>
+                  <option value="py-gpt4all">Python (GPT4All - local)</option>
+                </select>
+                <div className="text-sm text-muted-foreground">Current: <span className="font-medium">{extractionMethod}</span></div>
+              </div>
             {isLoading && (
                 <div className="mt-4 w-full space-y-2">
                     <Progress value={undefined} />
@@ -662,7 +685,12 @@ export default function Home() {
                                 <TableRow key={`boq-item-${itemIndex}`}>
                                     <TableCell>{itemIndex + 1}</TableCell>
                                     <TableCell>{item.itemCode}</TableCell>
-                                    <TableCell>{item.description}</TableCell>
+                                        <TableCell>
+                                          {item.description}
+                                          {typeof item.confidence === 'number' && (
+                                            <div className="text-xs text-muted-foreground">Confidence: {(item.confidence * 100).toFixed(0)}%</div>
+                                          )}
+                                        </TableCell>
                                     <TableCell className="text-right">
                                         <Input
                                           type="number"
