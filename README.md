@@ -40,3 +40,18 @@ export PY_LLAMA_MODEL_PATH="$(pwd)/models/your-model.bin"
 ```
 
 Once TGI or a local GGML model is available, start the Python backend and the Next dev server and select the appropriate extraction method in the UI (TGI or Llama/GPT4All).
+
+## Deploying to Vercel (production checklist)
+
+1. If you want the Python backend features (TGI/Llama), deploy the `python-backend` service to a public host (see `python-backend/README-deploy.md` for a Docker-based guide).
+2. In your Vercel project, set these Environment Variables under Settings → Environment Variables (Production):
+
+- `NEXT_PUBLIC_PY_API_URL` = `https://<your-python-backend>` (optional — if unset the app falls back to the in-app Genkit flow)
+- `PY_TGI_ENDPOINT` = `<tgi endpoint>` (optional; backend-only)
+- `PY_GENAI_ENDPOINT` / `PY_GENAI_KEY` (if you use an external GenAI provider)
+
+3. Ensure no server-only secrets are exposed as `NEXT_PUBLIC_` variables if you don't want them in the browser.
+
+4. Deploy the project from the Vercel dashboard or using the Vercel CLI.
+
+If you need a simple deployment target for the Python backend, the included `python-backend/Dockerfile` is compatible with Render, Cloud Run, Railway or any container-friendly host.
