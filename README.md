@@ -55,3 +55,22 @@ Once TGI or a local GGML model is available, start the Python backend and the Ne
 4. Deploy the project from the Vercel dashboard or using the Vercel CLI.
 
 If you need a simple deployment target for the Python backend, the included `python-backend/Dockerfile` is compatible with Render, Cloud Run, Railway or any container-friendly host.
+
+## Deploy from your machine (local -> Vercel)
+
+1. Install and login to the Vercel CLI:
+
+```bash
+npm i -g vercel
+vercel login
+```
+
+2. (Optional) Deploy interactively from repo root:
+
+	```powershell
+	# Windows PowerShell / PowerShell Core
+	.\scripts\deploy_vercel.ps1 -ProjectName "your-project-name"
+	```
+
+3. After the deployment finishes, add production environment variables in the Vercel dashboard (see checklist above).
+
